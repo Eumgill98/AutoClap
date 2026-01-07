@@ -9,6 +9,8 @@ license = {text = "GPL-3.0 license"}
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "pydantic (>=2.12.5,<3.0.0)",
+    "ultralytics (>=8.3.249,<9.0.0)"
 ]
 
 
