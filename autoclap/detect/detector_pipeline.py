@@ -9,16 +9,8 @@ class DetectorPipeline:
     def __init__(
         self,
         model: BaseDetector,
-        weight_path: str,
-        device: str,
     ):
-        self.model: BaseDetector = model(
-            weight_path=weight_path,
-            device=device,
-        )
-
-        self.weight_path: str = weight_path
-        self.device: str = device
+        self.model: BaseDetector = model
 
     def to(
         self,
@@ -31,8 +23,7 @@ class DetectorPipeline:
             device (str): Target device ('cpu', 'cuda' ...)
         """
         self.model.to(device=device)
-        self.device = device
-    
+
     def run(
         self,
         video_sampler: BaseVideoSampler,

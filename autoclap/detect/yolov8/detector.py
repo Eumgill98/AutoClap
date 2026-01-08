@@ -86,5 +86,5 @@ class YOLOv8Detector(BaseDetector):
         if not isinstance(inputs, list):
             inputs = [inputs]
 
-        results = self.predict(inputs, kwargs)
+        results = self.predict(inputs, **kwargs)
         return self.structure_output(results)
