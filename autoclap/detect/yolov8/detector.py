@@ -1,25 +1,40 @@
 from ultralytics import YOLO
-from pydantic import Field, model_validator
-from typing import Optional, Any, List
+from ultralytics.engine.results import Results
+
+from pydantic import model_validator
+from typing import Dict, List, Any, Union
 
 from autoclap.detect.base import BaseDetector
-from autoclap.core.sampler import BaseVideoSampler
 
 class YOLOv8Detector(BaseDetector):
-    model: Optional[YOLO] = Field(default=None, exclude=True)
-
     @model_validator(mode="after")
     def init_model(self):
-        self.model = YOLO(self.weight_path)
+        try:
+            self.model = YOLO(self.weight_path)
+            self.model.to(self.device)
+        except Exception as e:
+            raise ValueError(f"Failed to initialize YOLO model: {e}")
         return self
     
     def predict(
         self,
-        image: Any,
+        image: List[Any],
         conf: float = 0.3,
         iou: float = 0.5,
         **kwargs,
-    ):
+    ) -> List[Results]:
+        """
+        Predict objects in an image using YOLOv8.
+
+        Args:
+            image (Any): Input image
+            conf (float): Confidence threshold for detections. Default is 0.3.
+            iou (float): IoU threshold for Non-Maximum Suppression. Default is 0.5.
+            **kwargs: Additional arguments passed to YOLO.predict()
+
+        Returns:
+            List of Results objects containing detection information
+        """
         return (
             self.model.predict(
                 source=image,
@@ -28,27 +43,53 @@ class YOLOv8Detector(BaseDetector):
                 **kwargs
             )
         )
+
+    def structure_output(
+        self,
+        output: List[Results]
+    ) -> List[Dict]:
+        """
+        YOLOv8 output to structure.
+
+        Args:
+            output (List[Results]): YOLOv8 model predict outputs.
+
+        Returns:
+            List of Dict that is structure.
+            Each dict contains:
+                - boxes: List of bounding boxes in xyxy format
+                - scores: List of confidence scores
+                - classes: List of class indices
+                - class_names: List of class names
+        """
+        structured_results = []
+
+        for result in output:
+            structured_results.append({
+                "boxes": result.boxes.xyxy.cpu().numpy().tolist(),
+                "scores": result.boxes.conf.cpu().numpy().tolist(),
+                "classes": result.boxes.cls.cpu().numpy().tolist(),
+                "class_names": [result.names[int(cls)] for cls in result.boxes.cls.cpu().numpy()]
+            })
+
+        return structured_results
     
-    def predict_video(
-        self, 
-        video: Any, 
-        video_sampler: BaseVideoSampler, 
-        batch_size: int = 32,
-        conf: float = 0.3,
-        iou: float = 0.5,
-        **kwargs,
-    ) -> List[Any]:
-        result = []
-        frames = video_sampler.sample(video=video)
+    def __getitem__(
+        self,
+        inputs: Union[Any, List[Any]]
+    ):
+        """
+        Perform prediction and return structured output.
+        This method connects model.predict with structure_output.
 
-        for i in range(0, len(frames), batch_size):
-            batch = frames[i: i + batch_size]
-            tmp = self.model.predict(
-                source=batch,
-                conf=conf,
-                iou=iou,
-                **kwargs,
-            )
-            result.extend(tmp)
-        return result
+        Args:
+            iputs: Single image or List of images for prediction
+        
+        Returns:
+            List of Dict containing structured detection information.
+        """
+        if not isinstance(inputs, list):
+            inputs = [inputs]
 
+        results = self.predict(inputs)
+        return self.structure_output(results)
