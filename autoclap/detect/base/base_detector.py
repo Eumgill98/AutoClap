@@ -1,7 +1,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import List, Any, Optional, Union
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 
 import torch
 
@@ -15,6 +15,23 @@ class BaseDetector(BaseModel, ABC):
         arbitrary_types_allowed=True,
         extra="forbid",
     )
+
+    @model_validator(mode="after")
+    def init_model(self):
+        raise NotImplementedError(
+            f"""
+{self.__class__.__name__} must implement `init_model` as follows:
+
+@model_validator(mode="after")
+def init_model(self):
+    try:
+        self.model = [YOUR_MODEL_CLASS](self.weight_path)
+        self.model.to(self.device)
+    except Exception as e:
+        raise ValueError(f"Failed to initialize [YOUR_MODEL_CLASS] model: {{e}}")
+    return self
+"""
+        )
 
     def to(
         self,
@@ -50,8 +67,9 @@ class BaseDetector(BaseModel, ABC):
         ...
 
     @abstractmethod
-    def __getitem__(
+    def __call__(
         self,
-        inputs: Union[Any, List[Any]]
+        inputs: Union[Any, List[Any]],
+        **kwargs,
     ):
         ...

@@ -1,4 +1,5 @@
 import cv2
+import math
 
 from autoclap.core.sampler import BaseVideoSampler
 
@@ -28,3 +29,17 @@ class HeadVideoSampler(BaseVideoSampler):
             idx += 1
 
         cap.release()
+    
+    def __len__(self) -> int:
+        cap = cv2.VideoCapture(self.video)
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        cap.release()
+
+        if total_frames <= 0:
+            raise TypeError("Cannot determine video length")
+
+        effective_frames = min(total_frames, self.max_frames)
+
+        if self.drop_last:
+            return effective_frames // self.batch_size
+        return math.ceil(effective_frames / self.batch_size)

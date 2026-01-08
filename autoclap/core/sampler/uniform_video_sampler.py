@@ -1,9 +1,10 @@
 import cv2
+import math
 
 from autoclap.core.sampler import BaseVideoSampler
 
 class UniformVideoSampler(BaseVideoSampler):
-    """Sample every N frames"""
+    """Uniformly sample frames across the video"""
 
     def __init__(
         self,
@@ -19,12 +20,13 @@ class UniformVideoSampler(BaseVideoSampler):
         cap = cv2.VideoCapture(self.video)
 
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        if total_frames == 0:
+        if total_frames <= 0:
             cap.release()
             return
-        
-        step = total_frames / self.num_samples
-        target_indices = {int(i * step) for i in range(self.num_samples)}
+
+        effective_samples = min(self.num_samples, total_frames)
+        step = total_frames / effective_samples
+        target_indices = {int(i * step) for i in range(effective_samples)}
 
         idx = 0
         while cap.isOpened():
@@ -38,3 +40,17 @@ class UniformVideoSampler(BaseVideoSampler):
             idx += 1
 
         cap.release()
+
+    def __len__(self) -> int:
+        cap = cv2.VideoCapture(self.video)
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        cap.release()
+
+        if total_frames <= 0:
+            raise TypeError("Cannot determine video length")
+
+        effective_samples = min(self.num_samples, total_frames)
+
+        if self.drop_last:
+            return effective_samples // self.batch_size
+        return math.ceil(effective_samples / self.batch_size)

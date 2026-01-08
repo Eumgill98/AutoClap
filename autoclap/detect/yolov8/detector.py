@@ -19,8 +19,6 @@ class YOLOv8Detector(BaseDetector):
     def predict(
         self,
         image: List[Any],
-        conf: float = 0.3,
-        iou: float = 0.5,
         **kwargs,
     ) -> List[Results]:
         """
@@ -28,8 +26,6 @@ class YOLOv8Detector(BaseDetector):
 
         Args:
             image (Any): Input image
-            conf (float): Confidence threshold for detections. Default is 0.3.
-            iou (float): IoU threshold for Non-Maximum Suppression. Default is 0.5.
             **kwargs: Additional arguments passed to YOLO.predict()
 
         Returns:
@@ -38,8 +34,6 @@ class YOLOv8Detector(BaseDetector):
         return (
             self.model.predict(
                 source=image,
-                conf=conf,
-                iou=iou,
                 **kwargs
             )
         )
@@ -74,9 +68,10 @@ class YOLOv8Detector(BaseDetector):
 
         return structured_results
     
-    def __getitem__(
+    def __call__(
         self,
-        inputs: Union[Any, List[Any]]
+        inputs: Union[Any, List[Any]],
+        **kwargs,
     ):
         """
         Perform prediction and return structured output.
@@ -91,5 +86,5 @@ class YOLOv8Detector(BaseDetector):
         if not isinstance(inputs, list):
             inputs = [inputs]
 
-        results = self.predict(inputs)
+        results = self.predict(inputs, kwargs)
         return self.structure_output(results)

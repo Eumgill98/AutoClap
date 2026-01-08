@@ -1,4 +1,5 @@
 import cv2
+import math
 
 from autoclap.core.sampler import BaseVideoSampler
 
@@ -29,3 +30,17 @@ class IntervalVideoSampler(BaseVideoSampler):
             idx += 1
 
         cap.release()
+
+    def __len__(self) -> int:
+        cap = cv2.VideoCapture(self.video)
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        cap.release()
+
+        if total_frames <= 0:
+            raise TypeError("Cannot determine length for this video source")
+
+        num_samples = math.ceil(total_frames / self.interval)
+
+        if self.drop_last:
+            return num_samples // self.batch_size
+        return math.ceil(num_samples / self.batch_size)
