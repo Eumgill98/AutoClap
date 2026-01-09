@@ -4,7 +4,7 @@ from ultralytics.engine.results import Results
 from pydantic import model_validator
 from typing import Dict, List, Any, Union
 
-from autoclap.detect.base import BaseDetector
+from autoclap.detector.base import BaseDetector
 
 class YOLOv8Detector(BaseDetector):
     @model_validator(mode="after")

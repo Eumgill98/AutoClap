@@ -1,7 +1,7 @@
 from typing import List, Dict, Any
 from tqdm import tqdm
 
-from autoclap.detect.base import BaseDetector
+from autoclap.detector.base import BaseDetector
 from autoclap.core.sampler import BaseVideoSampler
 
 class DetectorPipeline:
