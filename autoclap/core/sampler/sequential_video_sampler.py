@@ -20,9 +20,7 @@ class SequentialVideoSampler(BaseVideoSampler):
         cap.release()
 
     def __len__(self) -> int:
-        cap = cv2.VideoCapture(self.video)
-        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        cap.release()
+        total_frames = self.total_frames
 
         if total_frames <= 0:
             raise TypeError("Cannot determine video length")

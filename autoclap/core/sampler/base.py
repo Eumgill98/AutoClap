@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Any, Iterable, Tuple, List
+import cv2
 
 Frame = Any
 SampledFrame = Tuple[int, Frame]
@@ -23,6 +24,31 @@ class BaseVideoSampler(ABC):
         self.video = video
         self.batch_size = batch_size
         self.drop_last = drop_last
+
+        # metadata
+        self._fps = 0
+        self._total_frames = 0
+
+        self._set_meta()
+
+    @property
+    def name(self) -> str:
+        return self.__class__.__name__
+
+    @property
+    def total_frames(self) -> float:
+        return self._total_frames
+    
+    @property
+    def fps(self) -> int:
+        return self._fps
+
+    def _set_meta(self) -> float:
+        """Set metadata"""
+        cap = cv2.VideoCapture(self.video)
+        self._fps = cap.get(cv2.CAP_PROP_FPS)
+        self._total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        cap.release()
 
     @abstractmethod
     def _iter_frames(self) -> Iterable[SampledFrame]:

@@ -3,6 +3,7 @@ from tqdm import tqdm
 from pathlib import Path
 
 from autoclap.detector.base import BaseDetector
+from autoclap.core.output import DetectorOutput
 from autoclap.core.sampler import BaseVideoSampler
 
 class DetectorPipeline:
@@ -30,26 +31,31 @@ class DetectorPipeline:
             List of Dict containing structured detection information.
         """
         results = []
-
+        frame_indices = []
+ 
         iterator = video_sampler
         if verbose:
             file_name = Path(video_sampler.video).stem
             iterator = tqdm(video_sampler, desc=f"Running {file_name}_video_detection", unit="batch")
 
         for batch in iterator:
-            frame_indices = [idx for idx, _ in batch]
+            indices = [idx for idx, _ in batch]
             frames = [frame for _, frame in batch]
 
             # inference
             outs = self.model(frames, **kwargs)
+            
+            results.extend(outs)
+            frame_indices.extend(indices)
 
-            for idx, det in zip(frame_indices, outs):
-                results.append({
-                    "frame_index": idx,
-                    "detections": det,
-                })
-
-        return results
+        return DetectorOutput(
+            video_path=video_sampler.video,
+            video_sampler=video_sampler.name,
+            frame_indices=frame_indices,
+            detections=results,
+            fps=video_sampler.fps,
+            total_frames=video_sampler.total_frames,
+        )
 
     def to(
         self,
