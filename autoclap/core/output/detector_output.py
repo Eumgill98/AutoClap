@@ -77,9 +77,11 @@ class DetectorOutput(BaseModel):
         if not self.detections:
             return result
         
-        for idx, det in zip(self.indices, self.detections):
-            best = self.get_best_score_in_frame(det, conf_th=conf_th)
+        for idx, det in zip(self.frame_indices, self.detections):
+            best = self.get_frame_best_score(det, conf_th=conf_th)
             result.append((idx, best))
+            
+        return result
 
     def get_clapperboard_zone(
         self,
