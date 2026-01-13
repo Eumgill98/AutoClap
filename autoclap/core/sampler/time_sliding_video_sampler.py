@@ -59,10 +59,7 @@ class TimeSlidingVideoSampler(BaseVideoSampler):
         cap.release()
 
     def __len__(self) -> int:
-        cap = cv2.VideoCapture(self.video)
-        fps = cap.get(cv2.CAP_PROP_FPS)
-        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        cap.release()
+        fps, total_frames = self.fps, self.total_frames
 
         if fps <= 0 or total_frames <= 0:
             raise TypeError("Cannot determine video length")
