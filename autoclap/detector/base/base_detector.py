@@ -5,6 +5,8 @@ from pydantic import BaseModel, Field, ConfigDict, model_validator
 
 import torch
 
+from autoclap.core.output import DetectorOutput
+
 class BaseDetector(BaseModel, ABC):
     """A abstract class for Detector"""
     weight_path: str = Field(..., description="weight file path")
@@ -54,7 +56,7 @@ def init_model(self):
     @abstractmethod
     def predict(
         self,
-        image: List[Any],
+        images: List[Any],
         **kwargs,
     ):
         ...
@@ -62,14 +64,17 @@ def init_model(self):
     @abstractmethod
     def structure_output(
         self,
-        output: List[Any]
-    ):
+        outputs: List[Any]
+    ) -> List[DetectorOutput]:
         ...
 
-    @abstractmethod
     def __call__(
         self,
         inputs: Union[Any, List[Any]],
         **kwargs,
-    ):
-        ...
+    ) -> List[DetectorOutput]:
+        if not isinstance(inputs, list):
+            inputs = [inputs]
+
+        results = self.predict(inputs, **kwargs)
+        return self.structure_output(results)

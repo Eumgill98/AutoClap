@@ -2,9 +2,10 @@ from ultralytics import YOLO
 from ultralytics.engine.results import Results
 
 from pydantic import model_validator
-from typing import Dict, List, Any, Union
+from typing import List, Any
 
 from autoclap.detector.base import BaseDetector
+from autoclap.core.output import Detection, DetectorOutput
 
 class YOLOv8Detector(BaseDetector):
     @model_validator(mode="after")
@@ -18,7 +19,7 @@ class YOLOv8Detector(BaseDetector):
     
     def predict(
         self,
-        image: List[Any],
+        images: List[Any],
         **kwargs,
     ) -> List[Results]:
         """
@@ -33,15 +34,15 @@ class YOLOv8Detector(BaseDetector):
         """
         return (
             self.model.predict(
-                source=image,
+                source=images,
                 **kwargs
             )
         )
 
     def structure_output(
         self,
-        output: List[Results]
-    ) -> List[Dict]:
+        outputs: List[Results]
+    ) -> List[DetectorOutput]:
         """
         YOLOv8 output to structure.
 
@@ -49,42 +50,29 @@ class YOLOv8Detector(BaseDetector):
             output (List[Results]): YOLOv8 model predict outputs.
 
         Returns:
-            List of Dict that is structure.
-            Each dict contains:
-                - boxes: List of bounding boxes in xyxy format
-                - scores: List of confidence scores
-                - classes: List of class indices
-                - class_names: List of class names
+            List of DetectorOutput that is structure by Detection
+            Each Detectoin contains:
+                - boxe:  xyxy format
+                - score: confidence scores
+                - class_id: class indices
+                - class_name: class names
         """
-        structured_results = []
+        total_result = []
 
-        for result in output:
-            structured_results.append({
-                "boxes": result.boxes.xyxy.cpu().numpy().tolist(),
-                "scores": result.boxes.conf.cpu().numpy().tolist(),
-                "classes": result.boxes.cls.cpu().numpy().tolist(),
-                "class_names": [result.names[int(cls)] for cls in result.boxes.cls.cpu().numpy()]
-            })
+        for result in outputs:
+            dets = []
+            for box, conf, cls in zip(
+                result.boxes.xyxy.cpu().numpy().tolist(),
+                result.boxes.conf.cpu().numpy().tolist(),
+                result.boxes.cls.cpu().numpy().tolist(),
+            ):
+                det = Detection(
+                    bbox=box,
+                    score=conf,
+                    class_id=cls,
+                    class_name=result.names[int(cls)],
+                )
+                dets.append(det)
+            total_result.append(DetectorOutput(detections=dets))
 
-        return structured_results
-    
-    def __call__(
-        self,
-        inputs: Union[Any, List[Any]],
-        **kwargs,
-    ):
-        """
-        Perform prediction and return structured output.
-        This method connects model.predict with structure_output.
-
-        Args:
-            iputs: Single image or List of images for prediction
-        
-        Returns:
-            List of Dict containing structured detection information.
-        """
-        if not isinstance(inputs, list):
-            inputs = [inputs]
-
-        results = self.predict(inputs, **kwargs)
-        return self.structure_output(results)
+        return total_result

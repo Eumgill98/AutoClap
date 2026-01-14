@@ -1,9 +1,9 @@
-from typing import List, Dict, Any, Union
+from typing import List, Union
 from tqdm import tqdm
 from pathlib import Path
 
 from autoclap.detector.base import BaseDetector
-from autoclap.core.output import DetectorOutput
+from autoclap.core.output import DetectorPipelineOutput
 from autoclap.core.sampler import BaseVideoSampler
 
 class DetectorPipeline:
@@ -19,7 +19,7 @@ class DetectorPipeline:
         video_sampler: BaseVideoSampler,
         verbose: bool = True,
         **kwargs,
-    ) -> List[Dict[str, Any]]:
+    ) -> DetectorPipelineOutput:
         """
         Run one video inference.
 
@@ -28,7 +28,7 @@ class DetectorPipeline:
             verbose (bool): show progress. Default is True.
             
         Returns:
-            List of Dict containing structured detection information.
+            DetectorPipelineOutput structured detection information.
         """
         results = []
         frame_indices = []
@@ -47,8 +47,8 @@ class DetectorPipeline:
             
             results.extend(outs)
             frame_indices.extend(indices)
-
-        return DetectorOutput(
+        
+        return DetectorPipelineOutput(
             video_path=video_sampler.video,
             video_sampler=video_sampler.name,
             frame_indices=frame_indices,
@@ -74,7 +74,7 @@ class DetectorPipeline:
         video_samplers: Union[BaseVideoSampler, List[BaseVideoSampler]],
         verbose: bool = True,
         **kwargs,
-    ) -> List[List[Dict[str, Any]]]:
+    ) -> List[DetectorPipelineOutput]:
         """
         Run videos inference.
 
@@ -83,7 +83,7 @@ class DetectorPipeline:
             verbose (bool): show progress. Default is True.
             
         Returns:
-            List of List that is dicts containing structured detection information.
+            List of List that DetectorOutput containing structured detection information.
         """
         results = []
 
