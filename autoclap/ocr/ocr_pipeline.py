@@ -1,4 +1,4 @@
-from typing import Union, List, Tuple, Callable, Optional
+from typing import Union, List, Tuple, Callable, Optional, Sequence
 import numpy as np 
 
 from autoclap.ocr.base import BaseOCR
@@ -14,7 +14,7 @@ class OCRPipeline:
     ):
         self.model: BaseOCR = model
 
-    def crop_by_bbox(
+    def _crop_by_bbox(
         self,
         frame: np.ndarray,
         bbox: list[int | float],
@@ -39,33 +39,44 @@ class OCRPipeline:
             crop = crop.astype(np.uint8)
 
         return crop
-
-    def _one_run(
+    
+    def _batch_preprocessing(
         self,
-        frame_bboxes: FrameBboxes,
-        add_pre: Optional[Callable] = None,
+        frames: List[np.array],
+        add_pre: Callable,
         **kwargs,
-    ) -> List[OCROutput]: 
+    ) -> List[np.ndarray]:
         """
-        Run one frame inference.
-
-        Args:
-            frame_bboxes (FrameBboxes): One frame and bboxes that are of clapperboard.
-            add_pre (Optional[Callable]) = Additional Preprocessing methods. Default is None.
-        
-        Returns:
-            List of OCROutput.
+        Multi image add prprocessing
         """
+        result: List[np.ndarray] = []
 
-        frame, bbox = frame_bboxes
-        frame = self.crop_by_bbox(frame, bbox)
-        
-        if add_pre is not None:
-            frame = add_pre(frame)
-        
-        outputs = self.model(frame, **kwargs)
+        for frame in frames:
+            new_frame = add_pre(frame, **kwargs)
+            result.append(new_frame)
 
-        return outputs
+        return result
+
+    def crop_by_bbox_batch(
+        self,
+        frames: List[np.ndarray],
+        bboxes: List[List[int | float]],
+    ) -> List[np.ndarray]:
+        """
+        Multi image crop processing
+        """
+        if len(frames) != len(bboxes):
+            raise ValueError(
+                f"frames ({len(frames)}) and bboxes ({len(bboxes)}) length mismatch"
+            )
+
+        crops: List[np.ndarray] = []
+
+        for frame, bbox in zip(frames, bboxes):
+            crop = self._crop_by_bbox(frame, bbox)
+            crops.append(crop)
+
+        return crops
 
     def run(
         self,
@@ -85,21 +96,27 @@ class OCRPipeline:
         Returns:
             List of OCROutput.
         """
-        results = []
         if not isinstance(frames_bboxes, list):
             frames_bboxes = [frames_bboxes]
         
+        frames = [frame for frame, _ in frames_bboxes]
+        bboxes = [bbox for _, bbox in frames_bboxes]
+
         if verbose:
             print("="*80)
             print(f"TOTAL RUN OCR FRAMES: {len(frames_bboxes)}")
-
-        for frame_bboxes in frames_bboxes:
-            results.extend(self._one_run(
-                frame_bboxes,
-                add_pre,
-                **kwargs,
-            ))
         
+        frames = self.crop_by_bbox_batch(frames, bboxes)
+
+        if add_pre is not None:
+            frames = self._batch_preprocessing(
+                frames=frames,
+                add_pre=add_pre,
+                **kwargs,
+            )
+    
+        results = self.model(frames, **kwargs) 
+
         if verbose:
             print("="*80)
             
