@@ -1,8 +1,8 @@
-from typing import Union, List, Tuple, Callable, Optional, Sequence
+from typing import Union, List, Tuple
 import numpy as np 
+import cv2
 
 from autoclap.ocr.base import BaseOCR
-from autoclap.core.output import OCROutput
 
 FrameBboxes = Tuple[np.array, List[int]]
 
@@ -18,6 +18,8 @@ class OCRPipeline:
         self,
         frame: np.ndarray,
         bbox: list[int | float],
+        pad: int = 0,
+        pad_value: int | tuple = 0,
     ) -> np.ndarray:
         h, w = frame.shape[:2]
         x1, y1, x2, y2 = map(int, bbox)
@@ -38,29 +40,27 @@ class OCRPipeline:
         if crop.dtype != np.uint8:
             crop = crop.astype(np.uint8)
 
+        if pad > 0:
+            if crop.ndim == 2:
+                pad_val = pad_value if isinstance(pad_value, int) else pad_value[0]
+            else:
+                pad_val = pad_value if isinstance(pad_value, tuple) else (pad_value,) * 3
+
+            crop = cv2.copyMakeBorder(
+                crop,
+                pad, pad, pad, pad,
+                borderType=cv2.BORDER_CONSTANT,
+                value=pad_val,
+            )
+
         return crop
-    
-    def _batch_preprocessing(
-        self,
-        frames: List[np.array],
-        add_pre: Callable,
-        **kwargs,
-    ) -> List[np.ndarray]:
-        """
-        Multi image add prprocessing
-        """
-        result: List[np.ndarray] = []
-
-        for frame in frames:
-            new_frame = add_pre(frame, **kwargs)
-            result.append(new_frame)
-
-        return result
 
     def crop_by_bbox_batch(
         self,
         frames: List[np.ndarray],
         bboxes: List[List[int | float]],
+        pad: int = 0,
+        pad_value: int | tuple = 0,
     ) -> List[np.ndarray]:
         """
         Multi image crop processing
@@ -73,7 +73,7 @@ class OCRPipeline:
         crops: List[np.ndarray] = []
 
         for frame, bbox in zip(frames, bboxes):
-            crop = self._crop_by_bbox(frame, bbox)
+            crop = self._crop_by_bbox(frame, bbox, pad, pad_value)
             crops.append(crop)
 
         return crops
@@ -81,8 +81,9 @@ class OCRPipeline:
     def run(
         self,
         frames_bboxes: Union[FrameBboxes, List[FrameBboxes]],
-        add_pre: Optional[Callable] = None,
         verbose: bool = True,
+        pad: int = 0,
+        pad_value: int | tuple = 0,
         **kwargs, 
     ):
         """
@@ -90,8 +91,9 @@ class OCRPipeline:
 
         Args:
             frames_bboxes (Union[np.array, List[np.array]]): List of frames and bboxes
-            add_pre (Optional[Callable]): Additional Preprocessing methods. Default is None.
             verbose (bool): show progress.
+            pad (int): padding size. 
+            pad_value (int or tuple): padding fill value.
 
         Returns:
             List of OCROutput.
@@ -106,15 +108,7 @@ class OCRPipeline:
             print("="*80)
             print(f"TOTAL RUN OCR FRAMES: {len(frames_bboxes)}")
         
-        frames = self.crop_by_bbox_batch(frames, bboxes)
-
-        if add_pre is not None:
-            frames = self._batch_preprocessing(
-                frames=frames,
-                add_pre=add_pre,
-                **kwargs,
-            )
-    
+        frames = self.crop_by_bbox_batch(frames, bboxes, pad, pad_value)
         results = self.model(frames, **kwargs) 
 
         if verbose:
